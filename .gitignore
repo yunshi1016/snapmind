@@ -1,0 +1,54 @@
+# ===== SnapMind / Flutter monorepo .gitignore =====
+
+# --- Secrets / local config ---
+.env
+.env.*
+!.env.example
+*.local
+**/secrets.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# --- Dart / Flutter ---
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/doc/api/
+coverage/
+*.g.dart.lock
+
+# Generated code (freezed / json_serializable / riverpod) is committed by default.
+# If you decide NOT to commit generated files, uncomment:
+# *.g.dart
+# *.freezed.dart
+
+# --- Flutter desktop (Windows) build artifacts ---
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
+
+# --- IDE / editors ---
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.history/
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Melos (if/when enabled) ---
+.melos_tool/
+pubspec_overrides.yaml
+
+# --- Misc ---
+*.log
+*.tmp
