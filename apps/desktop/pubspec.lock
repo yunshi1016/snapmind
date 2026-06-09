@@ -145,14 +145,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  ffi_leak_tracker:
-    dependency: transitive
-    description:
-      name: ffi_leak_tracker
-      sha256: "4093d4ef9ca06ffe2786e73bfb25e22aa92112b9bb4ec941f11e3e6b61489a97"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.2"
   file:
     dependency: transitive
     description:
@@ -311,10 +303,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_secure_storage_windows
-      sha256: "471951813a97006d899db4948acc654a4f28c440083ea08178935ce20b173ec1"
+      sha256: "3b7c8e068875dfd46719ff57c90d8c459c87f2302ed6b00ff006b3c9fcad1613"
       url: "https://pub.dev"
     source: hosted
-    version: "4.2.2"
+    version: "4.1.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -414,7 +406,7 @@ packages:
     source: hosted
     version: "4.1.2"
   image:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: image
       sha256: "6300175e00616bbc832e2fc91bfa4d776af5402c81c7151bee6905bb08473c52"
@@ -582,7 +574,7 @@ packages:
     source: hosted
     version: "1.9.1"
   path_provider:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path_provider
       sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"
@@ -701,8 +693,48 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.1"
-  screen_retriever:
+  screen_capturer:
+    dependency: "direct main"
+    description:
+      name: screen_capturer
+      sha256: "6607812bac01f2d3d98cad0808f5efbaa5824445998dc8567de5f05f24b45b95"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.3"
+  screen_capturer_linux:
     dependency: transitive
+    description:
+      name: screen_capturer_linux
+      sha256: "3c87aeffcb6f744dd6f7d257c916e6caf23f06e85a976c2f319f9d4398151821"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.3"
+  screen_capturer_macos:
+    dependency: transitive
+    description:
+      name: screen_capturer_macos
+      sha256: "92b67dfbae3263d2228e2438b74dc9aae8cdc9ccacca152f0f8e8531ed5aff8b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.2"
+  screen_capturer_platform_interface:
+    dependency: transitive
+    description:
+      name: screen_capturer_platform_interface
+      sha256: f53d3b955bb413cf4f9bd928c501297a3eb490a72b6a147c8384d4cd5feb872a
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.2"
+  screen_capturer_windows:
+    dependency: transitive
+    description:
+      name: screen_capturer_windows
+      sha256: "141542ff0ce1dae0df9c6625182c480c973c20282dc85f866fbc9215dcbbe04f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.2"
+  screen_retriever:
+    dependency: "direct main"
     description:
       name: screen_retriever
       sha256: "570dbc8e4f70bac451e0efc9c9bb19fa2d6799a11e6ef04f946d7886d2e23d0c"
@@ -837,6 +869,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.0"
+  shell_executor:
+    dependency: transitive
+    description:
+      name: shell_executor
+      sha256: "9c024546fc96470a6b96be9902f0bc05347a017a7638ed8d93c77e8d77eb3c3c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.6"
   shortid:
     dependency: transitive
     description:
@@ -1030,10 +1070,10 @@ packages:
     dependency: transitive
     description:
       name: win32
-      sha256: ba6f4bba816c8d7e3c1580e170f3786d216951cc6b94babc3b814c08d2cb2738
+      sha256: d7cb55e04cd34096cd3a79b3330245f54cb96a370a1c27adb3c84b917de8b08e
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.0"
+    version: "5.15.0"
   window_manager:
     dependency: "direct main"
     description:

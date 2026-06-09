@@ -19,14 +19,19 @@ class HomePage extends ConsumerWidget {
     final configured = settings.isConfigured;
 
     return ScaffoldPage(
-      content: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+      content: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                 const _Logo(),
                 const SizedBox(height: 22),
                 const Text(
@@ -128,6 +133,9 @@ class HomePage extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
             ),
           ),
         ),
