@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/ai/ai_service.dart';
 import 'core/markdown/markdown_generator.dart';
 import 'core/models/capture_record.dart';
 import 'core/obsidian/obsidian_writer.dart';
@@ -48,7 +50,8 @@ class _RootShellState extends ConsumerState<RootShell>
   final HotkeyService _hotkeys = HotkeyService();
   int _index = 0;
   bool _capturing = false;
-  bool _savingAnnotation = false;
+  String? _toastText; // 非 null 时显示右下角保存悬浮条
+  bool _toastDone = false;
 
   @override
   void initState() {
@@ -103,6 +106,10 @@ class _RootShellState extends ConsumerState<RootShell>
     if (_capturing) return;
     _capturing = true;
     try {
+      // 最小化窗口的 SetWindowPos 会被系统忽略（导致后续 setBounds 失效）——先还原。
+      if (await windowManager.isMinimized()) {
+        await windowManager.restore();
+      }
       if (await windowManager.isVisible()) {
         await windowManager.hide();
         // 轮询直到窗口确实隐藏，再加 settle，绝不把 SnapMind 自己拍进截图。
@@ -175,6 +182,12 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.focus();
     var fallbackOk = false;
     for (var i = 0; i < 60; i++) {
+      // 偶发 setBounds 未生效（如刚从最小化还原）——中途重发兜底。
+      if (i == 15 || i == 35) {
+        await windowManager
+            .setBounds(Rect.fromLTWH(0, 0, shot.width / dpr, shot.height / dpr));
+        log.writeln('re-apply bounds at i=$i');
+      }
       final ps = view.physicalSize;
       if (i == 0 || i == 59) log.writeln('i=$i physical=$ps');
       if ((ps.width - shot.width).abs() <= 2) {
@@ -228,6 +241,8 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.setFullScreen(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setResizable(false);
+    // 解除主窗最小尺寸钳制（720×560 会把 480×580 的批注窗顶大）。
+    await windowManager.setMinimumSize(const Size(1, 1));
     await windowManager.setTitleBarStyle(
       TitleBarStyle.hidden,
       windowButtonVisibility: false,
@@ -243,6 +258,7 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.unmaximize();
     await windowManager.setFullScreen(false);
     await windowManager.setAlwaysOnTop(false);
+    await windowManager.setMinimumSize(const Size(720, 560));
     await windowManager.setResizable(true);
     await windowManager.setTitleBarStyle(
       TitleBarStyle.normal,
@@ -308,7 +324,38 @@ class _RootShellState extends ConsumerState<RootShell>
       await _showError('未配置知识库', '请先在「设置」里填写 Obsidian Vault 路径再保存。');
       return;
     }
-    setState(() => _savingAnnotation = true);
+    // 立即收起批注窗 → 右下角小悬浮条显示进度，不让用户对着大窗等。
+    ref.read(annotationProvider.notifier).clear();
+    setState(() {
+      _toastText = 'AI 识别并保存中…';
+      _toastDone = false;
+    });
+    // 先解除最小尺寸钳制（主窗 minimumSize 720×560 会把小窗顶大）。
+    await windowManager.setMinimumSize(const Size(1, 1));
+    await windowManager.setSize(const Size(320, 88));
+    await windowManager.setAlignment(Alignment.bottomRight);
+
+    // M7：AI 识别截图（失败降级，绝不阻塞写盘）。
+    AiCaptureResult? ai;
+    String? aiError;
+    try {
+      final apiKey = await ref.read(settingsServiceProvider).readApiKey();
+      if (apiKey == null || apiKey.isEmpty) {
+        aiError = '未配置 API Key';
+      } else {
+        ai = await AiService(
+          baseUrl: settings.aiBaseUrl,
+          apiKey: apiKey,
+          model: settings.aiModel,
+        ).analyzeCapture(pngBytes: pending.croppedPng, userNote: note);
+      }
+    } catch (e) {
+      aiError = e is DioException
+          ? (e.response != null
+              ? 'HTTP ${e.response?.statusCode}: ${e.response?.data}'
+              : e.message ?? '$e')
+          : '$e';
+    }
 
     String message;
     bool ok = false;
@@ -319,6 +366,11 @@ class _RootShellState extends ConsumerState<RootShell>
         userNote: note,
         screenshotPath: pending.screenshotPath,
         vaultPath: settings.vaultPath,
+        ocrText: ai?.ocrText ?? '',
+        aiTitle: ai?.title ?? '',
+        aiSummary: ai?.summary ?? '',
+        tags: ai?.tags ?? const [],
+        status: ai != null ? CaptureStatus.saved : CaptureStatus.aiFailed,
       );
       final markdown = const MarkdownGenerator().generate(record);
       final now = pending.createdAt;
@@ -332,40 +384,27 @@ class _RootShellState extends ConsumerState<RootShell>
         markdown: markdown,
       );
       ok = true;
-      message = '笔记已写入：${res.fileName}';
+      if (ai != null) {
+        message = '已保存：${res.fileName}';
+      } else {
+        message = '已保存（AI 未生效，降级）';
+        _writeDiag(StringBuffer()..writeln('${DateTime.now()} AI fail: $aiError'));
+      }
     } catch (e) {
       message = '写入失败：$e';
     }
 
     if (!mounted) return;
-    if (ok) {
-      // 浮窗内短暂确认，然后静默回托盘（笔记已在 Obsidian）。
-      await displayInfoBar(
-        context,
-        duration: const Duration(milliseconds: 1100),
-        builder: (context, close) => InfoBar(
-          title: const Text('✅ 已保存到 Obsidian'),
-          content: Text(message),
-          severity: InfoBarSeverity.success,
-          onClose: close,
-        ),
-      );
-      await windowManager.hide();
-      ref.read(annotationProvider.notifier).clear();
-      if (mounted) setState(() => _savingAnnotation = false);
-      await _restoreNormalChrome();
-    } else {
-      setState(() => _savingAnnotation = false);
-      await displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('保存失败'),
-          content: Text(message),
-          severity: InfoBarSeverity.error,
-          onClose: close,
-        ),
-      );
-    }
+    // 悬浮条显示结果，短暂停留后消失回托盘。
+    setState(() {
+      _toastText = message;
+      _toastDone = ok;
+    });
+    await Future.delayed(Duration(milliseconds: ok ? 1200 : 3500));
+    if (!mounted) return;
+    setState(() => _toastText = null);
+    await windowManager.hide();
+    await _restoreNormalChrome();
   }
 
   Future<void> _cancelAnnotation() async {
@@ -494,10 +533,51 @@ class _RootShellState extends ConsumerState<RootShell>
               pending: pending,
               onSave: _saveAnnotation,
               onCancel: _cancelAnnotation,
-              saving: _savingAnnotation,
             ),
           ),
+        if (_toastText != null)
+          Positioned.fill(
+            child: _SaveToast(text: _toastText!, done: _toastDone),
+          ),
       ],
+    );
+  }
+}
+
+/// 保存进度悬浮条：占满右下角小窗（320×88），转圈 → ✅/❌ 结果。
+class _SaveToast extends StatelessWidget {
+  const _SaveToast({required this.text, required this.done});
+
+  final String text;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final saving = !done && !text.contains('失败');
+    return Container(
+      color: const Color(0xFF111116),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Row(
+        children: [
+          if (saving)
+            const SizedBox(width: 20, height: 20, child: ProgressRing(strokeWidth: 2.5))
+          else
+            Icon(
+              done ? FluentIcons.check_mark : FluentIcons.error_badge,
+              size: 20,
+              color: done ? const Color(0xFF4ADE80) : const Color(0xFFF87171),
+            ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
