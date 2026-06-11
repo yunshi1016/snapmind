@@ -21,7 +21,7 @@ Future<void> main() async {
     minimumSize: Size(720, 560),
     center: true,
     title: 'SnapMind',
-    backgroundColor: Colors.transparent,
+    backgroundColor: Color(0xFF101014), // 不透明，避免无边框浮窗透出背后内容/闪烁
     titleBarStyle: TitleBarStyle.normal,
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
