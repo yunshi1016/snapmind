@@ -20,6 +20,7 @@ import 'features/home/home_page.dart';
 import 'features/settings/settings_page.dart';
 import 'providers.dart';
 import 'services/capture_service.dart';
+import 'services/foreground_window_service.dart';
 import 'services/hotkey_service.dart';
 import 'theme.dart';
 
@@ -52,6 +53,7 @@ class _RootShellState extends ConsumerState<RootShell>
   bool _capturing = false;
   String? _toastText; // 非 null 时显示右下角保存悬浮条
   bool _toastDone = false;
+  ForegroundWindowInfo _lastSource = const ForegroundWindowInfo();
 
   @override
   void initState() {
@@ -106,6 +108,8 @@ class _RootShellState extends ConsumerState<RootShell>
     if (_capturing) return;
     _capturing = true;
     try {
+      // 最先取前台窗口元数据 —— 一旦动了自己的窗口，焦点就变了。
+      _lastSource = const ForegroundWindowService().capture();
       // 最小化窗口的 SetWindowPos 会被系统忽略（导致后续 setBounds 失效）——先还原。
       if (await windowManager.isMinimized()) {
         await windowManager.restore();
@@ -305,6 +309,8 @@ class _RootShellState extends ConsumerState<RootShell>
               width: res.width,
               height: res.height,
               createdAt: DateTime.now(),
+              sourceApp: _lastSource.app,
+              sourceWindowTitle: _lastSource.title,
             ),
           );
       _capturing = false;
@@ -370,6 +376,8 @@ class _RootShellState extends ConsumerState<RootShell>
         aiTitle: ai?.title ?? '',
         aiSummary: ai?.summary ?? '',
         tags: ai?.tags ?? const [],
+        sourceApp: pending.sourceApp,
+        sourceWindowTitle: pending.sourceWindowTitle,
         status: ai != null ? CaptureStatus.saved : CaptureStatus.aiFailed,
       );
       final markdown = const MarkdownGenerator().generate(record);

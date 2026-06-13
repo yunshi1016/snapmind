@@ -10,6 +10,8 @@ class PendingCapture {
     required this.width,
     required this.height,
     required this.createdAt,
+    this.sourceApp = '',
+    this.sourceWindowTitle = '',
   });
 
   final Uint8List croppedPng; // 缩略图用
@@ -17,6 +19,8 @@ class PendingCapture {
   final int width;
   final int height;
   final DateTime createdAt;
+  final String sourceApp; // 触发截图时的前台应用
+  final String sourceWindowTitle; // 触发截图时的前台窗口标题
 }
 
 /// null = 无待批注；非 null = 批注窗显示中。
