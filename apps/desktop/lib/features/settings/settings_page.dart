@@ -40,7 +40,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _apiKey = TextEditingController();
     _preset = _detectPreset(s.aiBaseUrl);
     _retentionDays = _validRetention(s.screenshotRetentionDays);
-    for (final c in [_vault, _captures, _backupDir, _hotkey, _baseUrl, _apiKey, _model]) {
+    for (final c in [
+      _vault,
+      _captures,
+      _backupDir,
+      _hotkey,
+      _baseUrl,
+      _apiKey,
+      _model,
+    ]) {
       c.addListener(_markDirty);
     }
     _loadApiKey();
@@ -73,7 +81,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   @override
   void dispose() {
-    for (final c in [_vault, _captures, _backupDir, _hotkey, _baseUrl, _apiKey, _model]) {
+    for (final c in [
+      _vault,
+      _captures,
+      _backupDir,
+      _hotkey,
+      _baseUrl,
+      _apiKey,
+      _model,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -158,7 +174,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   Expanded(
                     child: TextBox(
                       controller: _backupDir,
-                      placeholder: r'留空 = 默认 %LOCALAPPDATA%\SnapMind\Screenshots',
+                      placeholder:
+                          r'留空 = 默认 %LOCALAPPDATA%\SnapMind\Screenshots',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -188,14 +205,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _section(
           icon: FluentIcons.keyboard_classic,
           title: '快捷键',
-          subtitle: '全局触发截图捕捉（将于 M3 启用）。',
+          subtitle: '在任意程序按下即可触发截图捕捉。',
           children: [
             InfoLabel(
               label: '全局截图快捷键',
-              child: TextBox(
-                controller: _hotkey,
-                placeholder: 'Ctrl+Shift+1',
-              ),
+              child: TextBox(controller: _hotkey, placeholder: 'Ctrl+Shift+1'),
             ),
           ],
         ),
@@ -239,7 +253,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 obscureText: _obscureKey,
                 placeholder: _loadingKey ? '读取中…' : 'sk-…',
                 suffix: IconButton(
-                  icon: Icon(_obscureKey ? FluentIcons.red_eye : FluentIcons.hide3),
+                  icon: Icon(
+                    _obscureKey ? FluentIcons.red_eye : FluentIcons.hide3,
+                  ),
                   onPressed: () => setState(() => _obscureKey = !_obscureKey),
                 ),
               ),
@@ -247,10 +263,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             const SizedBox(height: 14),
             InfoLabel(
               label: '模型',
-              child: TextBox(
-                controller: _model,
-                placeholder: 'MiniMax-M3',
-              ),
+              child: TextBox(controller: _model, placeholder: 'MiniMax-M3'),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -310,7 +323,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),

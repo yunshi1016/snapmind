@@ -27,9 +27,17 @@ void main() {
 
   test('重名追加 (1)', () async {
     final a = await writer.writeNote(
-        vaultPath: tmp.path, capturesDir: 'c', baseName: 'note', markdown: 'a');
+      vaultPath: tmp.path,
+      capturesDir: 'c',
+      baseName: 'note',
+      markdown: 'a',
+    );
     final b = await writer.writeNote(
-        vaultPath: tmp.path, capturesDir: 'c', baseName: 'note', markdown: 'b');
+      vaultPath: tmp.path,
+      capturesDir: 'c',
+      baseName: 'note',
+      markdown: 'b',
+    );
     expect(a.fileName, 'note.md');
     expect(b.fileName, 'note (1).md');
   });

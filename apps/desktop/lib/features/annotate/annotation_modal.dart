@@ -49,7 +49,11 @@ class _AnnotationModalState extends State<AnnotationModal> {
           children: [
             Row(
               children: [
-                const Icon(FluentIcons.edit, size: 18, color: Color(0xFF9C8FFF)),
+                const Icon(
+                  FluentIcons.edit,
+                  size: 18,
+                  color: Color(0xFF9C8FFF),
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   '记下你的想法',
@@ -58,7 +62,10 @@ class _AnnotationModalState extends State<AnnotationModal> {
                 const Spacer(),
                 Text(
                   '${p.width}×${p.height}',
-                  style: const TextStyle(fontSize: 12, color: Color(0x88FFFFFF)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0x88FFFFFF),
+                  ),
                 ),
               ],
             ),
@@ -110,7 +117,10 @@ class _AnnotationModalState extends State<AnnotationModal> {
                 FilledButton(
                   onPressed: widget.saving ? null : _save,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

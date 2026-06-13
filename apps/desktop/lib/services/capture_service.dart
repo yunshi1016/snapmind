@@ -40,7 +40,11 @@ class CaptureService {
     if (!await file.exists()) return null;
     final decoded = img.decodeImage(await file.readAsBytes());
     if (decoded == null) return null;
-    return FullScreenShot(path: outPath, width: decoded.width, height: decoded.height);
+    return FullScreenShot(
+      path: outPath,
+      width: decoded.width,
+      height: decoded.height,
+    );
   }
 
   /// 解析有效备份目录：设置留空时用默认 %LOCALAPPDATA%\SnapMind\Screenshots，并确保存在。
@@ -49,7 +53,8 @@ class CaptureService {
     if (configured.trim().isNotEmpty) {
       base = configured.trim();
     } else {
-      final local = Platform.environment['LOCALAPPDATA'] ??
+      final local =
+          Platform.environment['LOCALAPPDATA'] ??
           (await getApplicationSupportDirectory()).path;
       base = p.join(local, 'SnapMind', 'Screenshots');
     }
@@ -58,16 +63,48 @@ class CaptureService {
     return dir;
   }
 
-  /// 生成带时间戳的备份文件名。
+  /// 生成带时间戳的备份文件名（含毫秒，避免同秒多次截图覆盖）。
   String backupFileName([DateTime? at]) {
     final now = at ?? DateTime.now();
     String two(int n) => n.toString().padLeft(2, '0');
+    final ms = now.millisecond.toString().padLeft(3, '0');
     return 'SnapMind_${now.year}${two(now.month)}${two(now.day)}_'
-        '${two(now.hour)}${two(now.minute)}${two(now.second)}.png';
+        '${two(now.hour)}${two(now.minute)}${two(now.second)}_$ms.png';
+  }
+
+  /// 文件名前缀，用于识别「SnapMind 自己生成的备份」。
+  static const String backupPrefix = 'SnapMind_';
+
+  /// 按保留策略清理备份目录：删除超过 retentionDays 天的截图。
+  /// retentionDays < 0 永久保留；=0 由保存流程在写完笔记后即删，这里不主动清。
+  /// 安全：只删文件名以 SnapMind_ 开头的 .png，绝不碰用户放在该目录里的其他图片。
+  Future<void> cleanupBackups(
+    String backupDirConfigured,
+    int retentionDays,
+  ) async {
+    if (retentionDays <= 0) return;
+    final dir = await resolveBackupDir(backupDirConfigured);
+    final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
+    try {
+      await for (final e in dir.list()) {
+        if (e is! File) continue;
+        final name = p.basename(e.path);
+        if (!name.startsWith(backupPrefix) ||
+            !name.toLowerCase().endsWith('.png')) {
+          continue;
+        }
+        try {
+          if ((await e.stat()).modified.isBefore(cutoff)) await e.delete();
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 
   /// 把已有 PNG 文件复制到备份目录，返回最终路径。
-  Future<String> copyToBackup(String sourcePath, String backupDirConfigured) async {
+  Future<String> copyToBackup(
+    String sourcePath,
+    String backupDirConfigured,
+  ) async {
     final dir = await resolveBackupDir(backupDirConfigured);
     final dest = p.join(dir.path, backupFileName());
     await File(sourcePath).copy(dest);
@@ -99,7 +136,12 @@ class CaptureService {
     final cropped = img.copyCrop(src, x: x, y: y, width: width, height: height);
     final pngBytes = img.encodePng(cropped);
     final path = await savePngBytesToBackup(pngBytes, backupDirConfigured);
-    return CropResult(path: path, width: width, height: height, pngBytes: pngBytes);
+    return CropResult(
+      path: path,
+      width: width,
+      height: height,
+      pngBytes: pngBytes,
+    );
   }
 }
 

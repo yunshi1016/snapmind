@@ -47,8 +47,11 @@ class _Empty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(FluentIcons.history,
-              size: 40, color: Colors.white.withValues(alpha: 0.2)),
+          Icon(
+            FluentIcons.history,
+            size: 40,
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
           const SizedBox(height: 12),
           Text(
             '还没有捕获记录\n按 Ctrl+Shift+1 截一张试试',
@@ -137,9 +140,10 @@ class _HistoryTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final source = [record.sourceApp, record.sourceWindowTitle]
-        .where((e) => e.trim().isNotEmpty)
-        .join(' · ');
+    final source = [
+      record.sourceApp,
+      record.sourceWindowTitle,
+    ].where((e) => e.trim().isNotEmpty).join(' · ');
     return HoverButton(
       onPressed: () => _open(context),
       builder: (context, states) {
@@ -166,7 +170,9 @@ class _HistoryTile extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         if (record.status == CaptureStatus.aiFailed)
@@ -180,8 +186,9 @@ class _HistoryTile extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.45)),
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.45),
+                      ),
                     ),
                     if (record.aiSummary.trim().isNotEmpty) ...[
                       const SizedBox(height: 6),
@@ -190,9 +197,10 @@ class _HistoryTile extends ConsumerWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.4,
-                            color: Colors.white.withValues(alpha: 0.7)),
+                          fontSize: 12.5,
+                          height: 1.4,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
                       ),
                     ],
                     if (record.tags.isNotEmpty) ...[
@@ -211,8 +219,11 @@ class _HistoryTile extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: Icon(FluentIcons.delete,
-                    size: 14, color: Colors.white.withValues(alpha: 0.4)),
+                icon: Icon(
+                  FluentIcons.delete,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.4),
+                ),
                 onPressed: () => _confirmDelete(context, ref),
               ),
             ],

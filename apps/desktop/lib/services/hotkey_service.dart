@@ -15,10 +15,7 @@ class HotkeyService {
     await unregister();
     final hotKey = _parse(hotkeyString) ?? _defaultHotKey();
     _current = hotKey;
-    await hotKeyManager.register(
-      hotKey,
-      keyDownHandler: (_) => onTriggered(),
-    );
+    await hotKeyManager.register(hotKey, keyDownHandler: (_) => onTriggered());
   }
 
   Future<void> unregister() async {

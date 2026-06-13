@@ -27,17 +27,17 @@ class AiService {
     required this.model,
     Duration timeout = const Duration(seconds: 60),
   }) : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl.replaceAll(RegExp(r'/+$'), ''),
-            headers: {
-              'Authorization': 'Bearer $apiKey',
-              'Content-Type': 'application/json',
-            },
-            connectTimeout: const Duration(seconds: 15),
-            receiveTimeout: timeout,
-            sendTimeout: timeout,
-          ),
-        );
+         BaseOptions(
+           baseUrl: baseUrl.replaceAll(RegExp(r'/+$'), ''),
+           headers: {
+             'Authorization': 'Bearer $apiKey',
+             'Content-Type': 'application/json',
+           },
+           connectTimeout: const Duration(seconds: 15),
+           receiveTimeout: timeout,
+           sendTimeout: timeout,
+         ),
+       );
 
   final Dio _dio;
   final String model;
@@ -89,9 +89,10 @@ OCR 项保留截图里文字的原始语言。
       },
     );
 
-    final content = (((resp.data?['choices'] as List?)?.first
-            as Map<String, dynamic>?)?['message']
-        as Map<String, dynamic>?)?['content'];
+    final content =
+        (((resp.data?['choices'] as List?)?.first
+                as Map<String, dynamic>?)?['message']
+            as Map<String, dynamic>?)?['content'];
     if (content is! String || content.trim().isEmpty) {
       throw StateError('AI 返回内容为空');
     }

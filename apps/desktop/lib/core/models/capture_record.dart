@@ -126,7 +126,9 @@ class CaptureRecord {
       ocrText: (json['ocrText'] as String?) ?? '',
       aiTitle: (json['aiTitle'] as String?) ?? '',
       aiSummary: (json['aiSummary'] as String?) ?? '',
-      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      tags:
+          (json['tags'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       sourceApp: (json['sourceApp'] as String?) ?? '',
       sourceWindowTitle: (json['sourceWindowTitle'] as String?) ?? '',
       sourceUrl: json['sourceUrl'] as String?,

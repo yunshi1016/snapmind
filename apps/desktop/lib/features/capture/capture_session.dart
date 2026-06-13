@@ -24,5 +24,5 @@ class CaptureSessionNotifier extends Notifier<CaptureSession?> {
 
 final captureSessionProvider =
     NotifierProvider<CaptureSessionNotifier, CaptureSession?>(
-  CaptureSessionNotifier.new,
-);
+      CaptureSessionNotifier.new,
+    );

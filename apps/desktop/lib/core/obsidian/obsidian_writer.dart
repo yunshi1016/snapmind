@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 class ObsidianWriteResult {
-  const ObsidianWriteResult({required this.markdownPath, required this.fileName});
+  const ObsidianWriteResult({
+    required this.markdownPath,
+    required this.fileName,
+  });
 
   final String markdownPath;
   final String fileName;

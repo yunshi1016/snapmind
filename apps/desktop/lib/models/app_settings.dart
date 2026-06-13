@@ -10,7 +10,10 @@ class AiProviderPreset {
     AiProviderPreset('MiniMax（国内）', 'https://api.minimaxi.com/v1'),
     AiProviderPreset('OpenAI', 'https://api.openai.com/v1'),
     AiProviderPreset('DeepSeek', 'https://api.deepseek.com/v1'),
-    AiProviderPreset('通义 DashScope', 'https://dashscope.aliyuncs.com/compatible-mode/v1'),
+    AiProviderPreset(
+      '通义 DashScope',
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    ),
     AiProviderPreset('智谱 GLM', 'https://open.bigmodel.cn/api/paas/v4'),
     AiProviderPreset('本地 Ollama', 'http://localhost:11434/v1'),
     AiProviderPreset('自定义', ''),
@@ -93,7 +96,8 @@ class AppSettings {
       vaultPath: vaultPath ?? this.vaultPath,
       capturesDir: capturesDir ?? this.capturesDir,
       screenshotBackupDir: screenshotBackupDir ?? this.screenshotBackupDir,
-      screenshotRetentionDays: screenshotRetentionDays ?? this.screenshotRetentionDays,
+      screenshotRetentionDays:
+          screenshotRetentionDays ?? this.screenshotRetentionDays,
       hotkey: hotkey ?? this.hotkey,
       aiBaseUrl: aiBaseUrl ?? this.aiBaseUrl,
       aiModel: aiModel ?? this.aiModel,
@@ -115,9 +119,11 @@ class AppSettings {
     return AppSettings(
       vaultPath: (json['vaultPath'] as String?) ?? d.vaultPath,
       capturesDir: (json['capturesDir'] as String?) ?? d.capturesDir,
-      screenshotBackupDir: (json['screenshotBackupDir'] as String?) ?? d.screenshotBackupDir,
+      screenshotBackupDir:
+          (json['screenshotBackupDir'] as String?) ?? d.screenshotBackupDir,
       screenshotRetentionDays:
-          (json['screenshotRetentionDays'] as num?)?.toInt() ?? d.screenshotRetentionDays,
+          (json['screenshotRetentionDays'] as num?)?.toInt() ??
+          d.screenshotRetentionDays,
       hotkey: (json['hotkey'] as String?) ?? d.hotkey,
       aiBaseUrl: (json['aiBaseUrl'] as String?) ?? d.aiBaseUrl,
       aiModel: (json['aiModel'] as String?) ?? d.aiModel,

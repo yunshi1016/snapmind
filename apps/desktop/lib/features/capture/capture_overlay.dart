@@ -128,8 +128,10 @@ class _CaptureOverlayState extends State<CaptureOverlay> {
                     child: GestureDetector(
                       onTap: widget.onCancel,
                       child: Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xCC121216),
                           borderRadius: BorderRadius.circular(8),
@@ -158,7 +160,7 @@ class _CaptureOverlayState extends State<CaptureOverlay> {
 
 class _SelectionPainter extends CustomPainter {
   _SelectionPainter(this.selection, this.scale, this.brand)
-      : super(repaint: selection);
+    : super(repaint: selection);
 
   final ValueListenable<Rect?> selection;
   final double scale;
@@ -177,10 +179,14 @@ class _SelectionPainter extends CustomPainter {
     // 四块矩形遮罩（避免 saveLayer，省）
     canvas.drawRect(Rect.fromLTRB(0, 0, size.width, rect.top), _dim);
     canvas.drawRect(
-        Rect.fromLTRB(0, rect.bottom, size.width, size.height), _dim);
+      Rect.fromLTRB(0, rect.bottom, size.width, size.height),
+      _dim,
+    );
     canvas.drawRect(Rect.fromLTRB(0, rect.top, rect.left, rect.bottom), _dim);
     canvas.drawRect(
-        Rect.fromLTRB(rect.right, rect.top, size.width, rect.bottom), _dim);
+      Rect.fromLTRB(rect.right, rect.top, size.width, rect.bottom),
+      _dim,
+    );
     // 边框
     canvas.drawRect(
       rect,

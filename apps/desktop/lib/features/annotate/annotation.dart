@@ -34,5 +34,5 @@ class AnnotationNotifier extends Notifier<PendingCapture?> {
 
 final annotationProvider =
     NotifierProvider<AnnotationNotifier, PendingCapture?>(
-  AnnotationNotifier.new,
-);
+      AnnotationNotifier.new,
+    );

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tray_manager/tray_manager.dart';
@@ -125,11 +126,15 @@ class _RootShellState extends ConsumerState<RootShell>
     // 后台保存已达并发上限：提示用户稍候，不进截图。
     if (_runningJobs >= _maxConcurrent) {
       final bid = _jobSeq++;
-      setState(() => _jobs.add(_SaveJob(
+      setState(
+        () => _jobs.add(
+          _SaveJob(
             id: bid,
             label: '最多同时处理 $_maxConcurrent 条，请等一条完成',
             status: _JobStatus.blocked,
-          )));
+          ),
+        ),
+      );
       await _syncWindow();
       Timer(const Duration(milliseconds: 1800), () => _removeJob(bid));
       return;
@@ -163,7 +168,9 @@ class _RootShellState extends ConsumerState<RootShell>
       if (mounted) {
         await precacheImage(FileImage(File(shot.path)), context);
       }
-      ref.read(captureSessionProvider.notifier).start(
+      ref
+          .read(captureSessionProvider.notifier)
+          .start(
             CaptureSession(
               imagePath: shot.path,
               imageWidth: shot.width,
@@ -201,23 +208,27 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.setResizable(false);
 
     final log = StringBuffer()
-      ..writeln('--- ${DateTime.now()} dpr=$dpr '
-          'shot=${shot.width}x${shot.height} ---');
+      ..writeln(
+        '--- ${DateTime.now()} dpr=$dpr '
+        'shot=${shot.width}x${shot.height} ---',
+      );
 
     // 业界做法（Snipaste/PixPin 类工具）：选区窗是 WS_POPUP 纯无边框窗口，
     // 客户区 == 屏幕像素，精确匹配。setAsFrameless 去掉 resize 边框（hidden
     // titlebar 会留 ~16px 边框导致偏差）。宽容差仅作极端机型兜底，不再是主判定。
     await windowManager.setAsFrameless();
-    await windowManager
-        .setBounds(Rect.fromLTWH(0, 0, shot.width / dpr, shot.height / dpr));
+    await windowManager.setBounds(
+      Rect.fromLTWH(0, 0, shot.width / dpr, shot.height / dpr),
+    );
     await windowManager.show();
     await windowManager.focus();
     var fallbackOk = false;
     for (var i = 0; i < 60; i++) {
       // 偶发 setBounds 未生效（如刚从最小化还原）——中途重发兜底。
       if (i == 15 || i == 35) {
-        await windowManager
-            .setBounds(Rect.fromLTWH(0, 0, shot.width / dpr, shot.height / dpr));
+        await windowManager.setBounds(
+          Rect.fromLTWH(0, 0, shot.width / dpr, shot.height / dpr),
+        );
         log.writeln('re-apply bounds at i=$i');
       }
       final ps = view.physicalSize;
@@ -238,18 +249,22 @@ class _RootShellState extends ConsumerState<RootShell>
       return true;
     }
     try {
-      log.writeln('FAIL physical=${view.physicalSize} '
-          'nativeBounds=${await windowManager.getBounds()}');
+      log.writeln(
+        'FAIL physical=${view.physicalSize} '
+        'nativeBounds=${await windowManager.getBounds()}',
+      );
     } catch (_) {}
     _writeDiag(log);
     return false;
   }
 
   void _writeDiag(StringBuffer log) {
+    if (!kDebugMode) return; // 仅调试构建写诊断日志，发布版不污染用户 TEMP。
     try {
       final tmp = Platform.environment['TEMP'] ?? '.';
-      File('$tmp\\snapmind_diag.log')
-          .writeAsStringSync(log.toString(), mode: FileMode.append);
+      File(
+        '$tmp\\snapmind_diag.log',
+      ).writeAsStringSync(log.toString(), mode: FileMode.append);
     } catch (_) {}
   }
 
@@ -261,11 +276,15 @@ class _RootShellState extends ConsumerState<RootShell>
       return;
     }
     _syncing = true;
-    do {
-      _syncPending = false;
-      await _applyWindowState();
-    } while (_syncPending);
-    _syncing = false;
+    try {
+      do {
+        _syncPending = false;
+        await _applyWindowState();
+      } while (_syncPending);
+    } finally {
+      // 即使某步窗口操作抛异常也要释放锁，否则窗口同步永久卡死。
+      _syncing = false;
+    }
   }
 
   Future<void> _applyWindowState() async {
@@ -361,10 +380,22 @@ class _RootShellState extends ConsumerState<RootShell>
     try {
       final scaleX = session.imageWidth / canvasSize.width;
       final scaleY = session.imageHeight / canvasSize.height;
-      final x = (logicalRect.left * scaleX).round().clamp(0, session.imageWidth - 1);
-      final y = (logicalRect.top * scaleY).round().clamp(0, session.imageHeight - 1);
-      final w = (logicalRect.width * scaleX).round().clamp(1, session.imageWidth - x);
-      final h = (logicalRect.height * scaleY).round().clamp(1, session.imageHeight - y);
+      final x = (logicalRect.left * scaleX).round().clamp(
+        0,
+        session.imageWidth - 1,
+      );
+      final y = (logicalRect.top * scaleY).round().clamp(
+        0,
+        session.imageHeight - 1,
+      );
+      final w = (logicalRect.width * scaleX).round().clamp(
+        1,
+        session.imageWidth - x,
+      );
+      final h = (logicalRect.height * scaleY).round().clamp(
+        1,
+        session.imageHeight - y,
+      );
       final backupCfg = ref.read(settingsProvider).screenshotBackupDir;
       final res = await const CaptureService().cropAndSaveToBackup(
         sourcePath: session.imagePath,
@@ -375,7 +406,9 @@ class _RootShellState extends ConsumerState<RootShell>
         backupDirConfigured: backupCfg,
       );
       // 裁剪完成 → 进入批注。
-      ref.read(annotationProvider.notifier).start(
+      ref
+          .read(annotationProvider.notifier)
+          .start(
             PendingCapture(
               croppedPng: Uint8List.fromList(res.pngBytes),
               screenshotPath: res.path,
@@ -404,11 +437,15 @@ class _RootShellState extends ConsumerState<RootShell>
       return;
     }
     final jobId = _jobSeq++;
-    setState(() => _jobs.add(_SaveJob(
+    setState(
+      () => _jobs.add(
+        _SaveJob(
           id: jobId,
           label: _jobLabel(note, pending),
           status: _JobStatus.running,
-        )));
+        ),
+      ),
+    );
     ref.read(annotationProvider.notifier).clear();
     await _syncWindow(); // pending 清空、有 job → 进通知坞
     unawaited(_runSaveJob(jobId, pending, note, settings));
@@ -443,8 +480,8 @@ class _RootShellState extends ConsumerState<RootShell>
     } catch (e) {
       aiError = e is DioException
           ? (e.response != null
-              ? 'HTTP ${e.response?.statusCode}: ${e.response?.data}'
-              : e.message ?? '$e')
+                ? 'HTTP ${e.response?.statusCode}: ${e.response?.data}'
+                : e.message ?? '$e')
           : '$e';
     }
 
@@ -476,14 +513,24 @@ class _RootShellState extends ConsumerState<RootShell>
         baseName: '$dateStr ${record.displayTitle}',
         markdown: markdown,
       );
-      await ref.read(historyServiceProvider).add(
-            record.copyWith(markdownPath: res.markdownPath),
-          );
+      await ref
+          .read(historyServiceProvider)
+          .add(record.copyWith(markdownPath: res.markdownPath));
       ref.invalidate(historyListProvider);
+      // 保留时长为 0（用完即删）：写完笔记即删除该截图备份。
+      if (settings.screenshotRetentionDays == 0) {
+        try {
+          await File(pending.screenshotPath).delete();
+        } catch (_) {}
+      }
       ok = true;
-      detail = ai != null ? record.displayTitle : '${record.displayTitle}（AI 未生效）';
+      detail = ai != null
+          ? record.displayTitle
+          : '${record.displayTitle}（AI 未生效）';
       if (ai == null) {
-        _writeDiag(StringBuffer()..writeln('${DateTime.now()} AI fail: $aiError'));
+        _writeDiag(
+          StringBuffer()..writeln('${DateTime.now()} AI fail: $aiError'),
+        );
       }
     } catch (e) {
       detail = '写入失败：$e';
@@ -583,6 +630,12 @@ class _RootShellState extends ConsumerState<RootShell>
   }
 
   Future<void> _quit() async {
+    // 等后台保存任务跑完再退出，避免丢笔记（上限 70s，覆盖 AI 60s 超时 + 写盘）。
+    var waited = 0;
+    while (_runningJobs > 0 && waited < 70000) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      waited += 200;
+    }
     await _hotkeys.unregister();
     await trayManager.destroy();
     await windowManager.setPreventClose(false);
@@ -592,12 +645,9 @@ class _RootShellState extends ConsumerState<RootShell>
   @override
   Widget build(BuildContext context) {
     // 设置里的快捷键变更时，重新注册。
-    ref.listen<String>(
-      settingsProvider.select((s) => s.hotkey),
-      (prev, next) {
-        if (prev != next) _registerHotkey(next);
-      },
-    );
+    ref.listen<String>(settingsProvider.select((s) => s.hotkey), (prev, next) {
+      if (prev != next) _registerHotkey(next);
+    });
 
     final session = ref.watch(captureSessionProvider);
     final pending = ref.watch(annotationProvider);
@@ -613,7 +663,9 @@ class _RootShellState extends ConsumerState<RootShell>
               PaneItem(
                 icon: const Icon(FluentIcons.home),
                 title: const Text('主页'),
-                body: HomePage(onOpenSettings: () => setState(() => _index = 2)),
+                body: HomePage(
+                  onOpenSettings: () => setState(() => _index = 2),
+                ),
               ),
               PaneItem(
                 icon: const Icon(FluentIcons.history),
@@ -712,14 +764,28 @@ class _JobCard extends StatelessWidget {
     Widget leading;
     if (running) {
       leading = const SizedBox(
-          width: 18, height: 18, child: ProgressRing(strokeWidth: 2.5));
+        width: 18,
+        height: 18,
+        child: ProgressRing(strokeWidth: 2.5),
+      );
     } else if (blocked) {
-      leading = const Icon(FluentIcons.warning, size: 18, color: Color(0xFFFBBF24));
+      leading = const Icon(
+        FluentIcons.warning,
+        size: 18,
+        color: Color(0xFFFBBF24),
+      );
     } else if (failed) {
-      leading = const Icon(FluentIcons.error_badge, size: 18, color: Color(0xFFF87171));
+      leading = const Icon(
+        FluentIcons.error_badge,
+        size: 18,
+        color: Color(0xFFF87171),
+      );
     } else {
-      leading = const Icon(FluentIcons.completed_solid,
-          size: 18, color: Color(0xFF4ADE80));
+      leading = const Icon(
+        FluentIcons.completed_solid,
+        size: 18,
+        color: Color(0xFF4ADE80),
+      );
     }
 
     return Container(
@@ -741,7 +807,9 @@ class _JobCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  running ? 'AI 识别并保存中…' : (blocked ? '请稍候' : (failed ? '保存失败' : '已保存到 Obsidian')),
+                  running
+                      ? 'AI 识别并保存中…'
+                      : (blocked ? '请稍候' : (failed ? '保存失败' : '已保存到 Obsidian')),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.white.withValues(alpha: 0.5),

@@ -6,8 +6,10 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 
 const String _src = r'F:\CodingProjects\snapmind\brand\logo_icon_source.png';
-const String _logoOut = r'F:\CodingProjects\snapmind\apps\desktop\assets\logo.png';
-const String _trayOut = r'F:\CodingProjects\snapmind\apps\desktop\assets\tray_icon.ico';
+const String _logoOut =
+    r'F:\CodingProjects\snapmind\apps\desktop\assets\logo.png';
+const String _trayOut =
+    r'F:\CodingProjects\snapmind\apps\desktop\assets\tray_icon.ico';
 const String _appIconOut =
     r'F:\CodingProjects\snapmind\apps\desktop\windows\runner\resources\app_icon.ico';
 
@@ -57,7 +59,11 @@ void main() {
   final trimmed = img.trim(im, mode: img.TrimMode.transparent);
   final side = trimmed.width > trimmed.height ? trimmed.width : trimmed.height;
   final canvasSide = (side * 1.08).round();
-  final canvas = img.Image(width: canvasSide, height: canvasSide, numChannels: 4);
+  final canvas = img.Image(
+    width: canvasSide,
+    height: canvasSide,
+    numChannels: 4,
+  );
   img.compositeImage(
     canvas,
     trimmed,
@@ -65,17 +71,32 @@ void main() {
     dstY: ((canvasSide - trimmed.height) / 2).round(),
   );
 
-  File(_logoOut).writeAsBytesSync(img.encodePng(
-      img.copyResize(canvas, width: 512, height: 512, interpolation: img.Interpolation.cubic)));
+  File(_logoOut).writeAsBytesSync(
+    img.encodePng(
+      img.copyResize(
+        canvas,
+        width: 512,
+        height: 512,
+        interpolation: img.Interpolation.cubic,
+      ),
+    ),
+  );
 
   const sizes = [16, 24, 32, 48, 64, 128, 256];
   final icoImages = [
     for (final s in sizes)
-      img.copyResize(canvas, width: s, height: s, interpolation: img.Interpolation.cubic)
+      img.copyResize(
+        canvas,
+        width: s,
+        height: s,
+        interpolation: img.Interpolation.cubic,
+      ),
   ];
   final icoBytes = img.IcoEncoder().encodeImages(icoImages);
   File(_trayOut).writeAsBytesSync(icoBytes);
   File(_appIconOut).writeAsBytesSync(icoBytes);
 
-  stdout.writeln('OK  trimmed=${trimmed.width}x${trimmed.height}  canvas=$canvasSide');
+  stdout.writeln(
+    'OK  trimmed=${trimmed.width}x${trimmed.height}  canvas=$canvasSide',
+  );
 }

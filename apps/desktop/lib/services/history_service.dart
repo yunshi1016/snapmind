@@ -50,24 +50,20 @@ class HistoryService {
   }
 
   Future<void> add(CaptureRecord r) async {
-    await _db.insert(
-      _table,
-      {
-        'id': r.id,
-        'created_at': r.createdAt.toIso8601String(),
-        'title': r.displayTitle,
-        'summary': r.aiSummary,
-        'user_note': r.userNote,
-        'tags': r.tags.join(','),
-        'source_app': r.sourceApp,
-        'source_window': r.sourceWindowTitle,
-        'markdown_path': r.markdownPath,
-        'screenshot_path': r.screenshotPath,
-        'status': r.status.name,
-        'json': jsonEncode(r.toJson()),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await _db.insert(_table, {
+      'id': r.id,
+      'created_at': r.createdAt.toIso8601String(),
+      'title': r.displayTitle,
+      'summary': r.aiSummary,
+      'user_note': r.userNote,
+      'tags': r.tags.join(','),
+      'source_app': r.sourceApp,
+      'source_window': r.sourceWindowTitle,
+      'markdown_path': r.markdownPath,
+      'screenshot_path': r.screenshotPath,
+      'status': r.status.name,
+      'json': jsonEncode(r.toJson()),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<CaptureRecord>> recent({int limit = 200}) async {
@@ -77,9 +73,11 @@ class HistoryService {
       limit: limit,
     );
     return rows
-        .map((row) => CaptureRecord.fromJson(
-              jsonDecode(row['json'] as String) as Map<String, dynamic>,
-            ))
+        .map(
+          (row) => CaptureRecord.fromJson(
+            jsonDecode(row['json'] as String) as Map<String, dynamic>,
+          ),
+        )
         .toList(growable: false);
   }
 

@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'providers.dart';
+import 'services/capture_service.dart';
 import 'services/history_service.dart';
+import 'services/settings_service.dart';
 
 /// SnapMind · 瞬念 — Capture your thoughts from anywhere.
 Future<void> main() async {
@@ -17,6 +22,17 @@ Future<void> main() async {
   await hotKeyManager.unregisterAll();
   final prefs = await SharedPreferences.getInstance();
   final history = await HistoryService.open();
+
+  // 启动时按保留策略清理过期截图备份（后台进行，不阻塞启动）。
+  final settings = SettingsService(prefs, const FlutterSecureStorage()).load();
+  unawaited(
+    const CaptureService()
+        .cleanupBackups(
+          settings.screenshotBackupDir,
+          settings.screenshotRetentionDays,
+        )
+        .catchError((_) {}),
+  );
 
   const windowOptions = WindowOptions(
     size: Size(900, 640),
