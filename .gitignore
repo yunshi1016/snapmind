@@ -49,6 +49,9 @@ desktop.ini
 .melos_tool/
 pubspec_overrides.yaml
 
+# --- 发布产物 ---
+dist/
+
 # --- Misc ---
 *.log
 *.tmp

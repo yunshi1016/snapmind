@@ -108,7 +108,7 @@ class HomePage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 22),
                       Text(
-                        'v0.0.1 · GPL-3.0',
+                        'v0.1.0 · GPL-3.0',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.25),

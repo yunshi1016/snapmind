@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -20,6 +22,11 @@ Future<void> main() async {
   await windowManager.ensureInitialized();
   // 清理可能残留的全局热键注册（热重启/崩溃后）。
   await hotKeyManager.unregisterAll();
+  // 开机自启：登记应用名与可执行路径（开关在设置页控制）。
+  launchAtStartup.setup(
+    appName: 'SnapMind',
+    appPath: Platform.resolvedExecutable,
+  );
   final prefs = await SharedPreferences.getInstance();
   final history = await HistoryService.open();
 

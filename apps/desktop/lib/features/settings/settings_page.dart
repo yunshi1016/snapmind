@@ -1,6 +1,7 @@
 import 'package:file_selector/file_selector.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:launch_at_startup/launch_at_startup.dart';
 
 import '../../models/app_settings.dart';
 import '../../providers.dart';
@@ -26,6 +27,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   bool _obscureKey = true;
   bool _dirty = false;
   bool _loadingKey = true;
+  bool _autoStart = false;
 
   @override
   void initState() {
@@ -52,6 +54,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       c.addListener(_markDirty);
     }
     _loadApiKey();
+    _loadAutoStart();
+  }
+
+  Future<void> _loadAutoStart() async {
+    final enabled = await launchAtStartup.isEnabled();
+    if (mounted) setState(() => _autoStart = enabled);
+  }
+
+  Future<void> _toggleAutoStart(bool on) async {
+    if (on) {
+      await launchAtStartup.enable();
+    } else {
+      await launchAtStartup.disable();
+    }
+    final enabled = await launchAtStartup.isEnabled();
+    if (mounted) setState(() => _autoStart = enabled);
   }
 
   Future<void> _loadApiKey() async {
@@ -210,6 +228,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             InfoLabel(
               label: '全局截图快捷键',
               child: TextBox(controller: _hotkey, placeholder: 'Ctrl+Shift+1'),
+            ),
+          ],
+        ),
+        _section(
+          icon: FluentIcons.power_button,
+          title: '启动',
+          subtitle: '常驻系统托盘，随时按快捷键截图。',
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '开机自动启动',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+                ToggleSwitch(
+                  checked: _autoStart,
+                  onChanged: _toggleAutoStart,
+                ),
+              ],
             ),
           ],
         ),
