@@ -51,6 +51,8 @@ dependencies:
   dio: ^5.9.2
   ffi: ^2.2.0
   win32: ^5.15.0
+  sqflite_common_ffi: ^2.4.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

@@ -43,14 +43,20 @@ class AiService {
   final String model;
 
   static const String _systemPrompt = '''
-你是 SnapMind 截图知识助手。用户截取了一块屏幕区域并写下了自己的想法。请：
-1. 提取截图中的全部可读文字（ocr_text），保留合理换行；无文字则为空字符串。
-2. 结合截图内容与用户想法，生成简洁中文标题（title，≤20字，不要书名号/引号）。
-3. 生成 2~4 句中文摘要（summary）：以知识总结的视角，直接提炼内容本身的核心信息、观点或结论（像读书笔记的要点），方便日后回顾。禁止描述画面或行为，禁止出现「截图」「图片」「用户」「界面」等字眼。
-4. 生成 2~5 个中文标签（tags），每个 2~6 字，不带 # 号。
+你是 SnapMind 截图知识助手。用户截取了一块屏幕区域并写下了自己的想法。
+TITLE / SUMMARY / TAGS 一律用简体中文输出（即使截图内容是英文，也要用中文转述）；
+OCR 项保留截图里文字的原始语言。
+严格按下面的模板输出：每个标记 ###XXX### 单独占一行，下面紧跟该项内容。
+不要输出 JSON、不要代码块、不要任何额外说明。各项内容里可以自由使用任何标点（包括引号、换行）。
 
-只输出一个 JSON 对象，不要任何其他文字或代码块标记：
-{"ocr_text":"...","title":"...","summary":"...","tags":["..."]}''';
+###TITLE###
+（简洁中文标题，不超过 20 字，不带书名号/引号）
+###SUMMARY###
+（2~4 句中文摘要：以知识总结的视角，直接提炼内容本身的核心信息、观点或结论，像读书笔记的要点，方便日后回顾。禁止描述画面或行为，禁止出现「截图」「图片」「用户」「界面」等字眼）
+###OCR###
+（截图中的全部可读文字，保留合理换行；没有文字则此项留空）
+###TAGS###
+（2~5 个中文标签，用中文顿号、或英文逗号分隔，不带 # 号）''';
 
   Future<AiCaptureResult> analyzeCapture({
     required Uint8List pngBytes,
@@ -92,26 +98,39 @@ class AiService {
     return _parse(content);
   }
 
-  /// 宽松解析：剥掉代码块围栏、截取首尾大括号之间的 JSON。
+  /// 按 ###TITLE### / ###SUMMARY### / ###OCR### / ###TAGS### 标记切分。
+  /// 字段内含引号/换行/任意标点都不影响（这正是弃用 JSON 的原因）。
   AiCaptureResult _parse(String raw) {
-    var s = raw.trim();
-    s = s.replaceAll(RegExp(r'^```(json)?', multiLine: true), '');
-    s = s.replaceAll('```', '').trim();
-    final start = s.indexOf('{');
-    final end = s.lastIndexOf('}');
-    if (start < 0 || end <= start) {
-      throw FormatException('AI 返回的不是 JSON：$raw');
+    const keys = ['TITLE', 'SUMMARY', 'OCR', 'TAGS'];
+    final map = <String, String>{};
+    for (final key in keys) {
+      final marker = '###$key###';
+      final start = raw.indexOf(marker);
+      if (start < 0) continue;
+      final contentStart = start + marker.length;
+      var end = raw.length;
+      for (final other in keys) {
+        if (other == key) continue;
+        final pos = raw.indexOf('###$other###', contentStart);
+        if (pos >= 0 && pos < end) end = pos;
+      }
+      map[key] = raw.substring(contentStart, end).trim();
     }
-    final json = jsonDecode(s.substring(start, end + 1)) as Map<String, dynamic>;
-    return AiCaptureResult(
-      ocrText: (json['ocr_text'] as String?)?.trim() ?? '',
-      title: (json['title'] as String?)?.trim() ?? '',
-      summary: (json['summary'] as String?)?.trim() ?? '',
-      tags: (json['tags'] as List?)
-              ?.map((e) => e.toString().trim())
-              .where((e) => e.isNotEmpty)
-              .toList() ??
-          const [],
+    final tags = (map['TAGS'] ?? '')
+        .split(RegExp(r'[,，、\n]'))
+        .map((e) => e.replaceAll('#', '').trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final result = AiCaptureResult(
+      title: map['TITLE'] ?? '',
+      summary: map['SUMMARY'] ?? '',
+      ocrText: map['OCR'] ?? '',
+      tags: tags,
     );
+    // 一个标记都没命中（模型完全不听话）→ 视为失败，触发降级。
+    if (map.isEmpty) {
+      throw FormatException('AI 输出未含任何标记：$raw');
+    }
+    return result;
   }
 }

@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/models/capture_record.dart';
 import 'models/app_settings.dart';
+import 'services/history_service.dart';
 import 'services/settings_service.dart';
 
 /// 由 main() 通过 override 注入真实实例。
@@ -34,4 +36,14 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
   SettingsNotifier.new,
+);
+
+/// 由 main() 通过 override 注入已打开的 HistoryService。
+final historyServiceProvider = Provider<HistoryService>(
+  (ref) => throw UnimplementedError('在 main() 中用 overrideWithValue 注入'),
+);
+
+/// 历史记录列表（时间倒序）。保存后 ref.invalidate 刷新。
+final historyListProvider = FutureProvider<List<CaptureRecord>>(
+  (ref) => ref.watch(historyServiceProvider).recent(),
 );

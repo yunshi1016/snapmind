@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,12 +11,14 @@ import 'package:window_manager/window_manager.dart';
 
 import 'core/ai/ai_service.dart';
 import 'core/markdown/markdown_generator.dart';
+import 'models/app_settings.dart';
 import 'core/models/capture_record.dart';
 import 'core/obsidian/obsidian_writer.dart';
 import 'features/annotate/annotation.dart';
 import 'features/annotate/annotation_modal.dart';
 import 'features/capture/capture_overlay.dart';
 import 'features/capture/capture_session.dart';
+import 'features/history/history_page.dart';
 import 'features/home/home_page.dart';
 import 'features/settings/settings_page.dart';
 import 'providers.dart';
@@ -51,9 +54,17 @@ class _RootShellState extends ConsumerState<RootShell>
   final HotkeyService _hotkeys = HotkeyService();
   int _index = 0;
   bool _capturing = false;
-  String? _toastText; // 非 null 时显示右下角保存悬浮条
-  bool _toastDone = false;
   ForegroundWindowInfo _lastSource = const ForegroundWindowInfo();
+
+  // 后台保存任务（AI+写盘+入库，不占窗口）。最多 3 个并发。
+  final List<_SaveJob> _jobs = [];
+  int _jobSeq = 0;
+  bool _syncing = false;
+  bool _syncPending = false;
+
+  static const int _maxConcurrent = 3;
+  int get _runningJobs =>
+      _jobs.where((j) => j.status == _JobStatus.running).length;
 
   @override
   void initState() {
@@ -105,7 +116,24 @@ class _RootShellState extends ConsumerState<RootShell>
 
   // M4：按下快捷键 → 抓全屏 → 全屏 overlay 框选。窗口尺寸切换都在隐藏态完成，避免闪烁。
   Future<void> _onHotkeyTriggered() async {
-    if (_capturing) return;
+    // 正在框选/批注（窗口独占态）时拒绝新触发，避免窗口形态打架。
+    if (_capturing ||
+        ref.read(captureSessionProvider) != null ||
+        ref.read(annotationProvider) != null) {
+      return;
+    }
+    // 后台保存已达并发上限：提示用户稍候，不进截图。
+    if (_runningJobs >= _maxConcurrent) {
+      final bid = _jobSeq++;
+      setState(() => _jobs.add(_SaveJob(
+            id: bid,
+            label: '最多同时处理 $_maxConcurrent 条，请等一条完成',
+            status: _JobStatus.blocked,
+          )));
+      await _syncWindow();
+      Timer(const Duration(milliseconds: 1800), () => _removeJob(bid));
+      return;
+    }
     _capturing = true;
     try {
       // 最先取前台窗口元数据 —— 一旦动了自己的窗口，焦点就变了。
@@ -225,6 +253,34 @@ class _RootShellState extends ConsumerState<RootShell>
     } catch (_) {}
   }
 
+  /// 统一窗口状态机：根据 批注/通知坞/空闲 切到对应形态（截图流程自己管窗口，不插手）。
+  /// 防重入：同步进行中再次请求会在循环里补一次，保证最终状态正确。
+  Future<void> _syncWindow() async {
+    if (_syncing) {
+      _syncPending = true;
+      return;
+    }
+    _syncing = true;
+    do {
+      _syncPending = false;
+      await _applyWindowState();
+    } while (_syncPending);
+    _syncing = false;
+  }
+
+  Future<void> _applyWindowState() async {
+    if (_capturing) return; // 截图流程独占窗口
+    final pending = ref.read(annotationProvider);
+    if (pending != null) {
+      await _enterAnnotationWindow();
+    } else if (_jobs.isNotEmpty) {
+      await _enterDock();
+    } else {
+      await _restoreNormalChrome();
+      await windowManager.hide();
+    }
+  }
+
   /// 退出最大化/全屏、恢复正常窗口样式与尺寸（不改变可见性）。
   Future<void> _resetWindowHidden() async {
     await windowManager.unmaximize();
@@ -239,13 +295,12 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.center();
   }
 
-  /// 进入「批注浮窗」：无边框、置顶、紧凑居中，只显示批注卡片，不弹整个主窗。
+  /// 批注浮窗：无边框、置顶、紧凑居中。
   Future<void> _enterAnnotationWindow() async {
     await windowManager.unmaximize();
     await windowManager.setFullScreen(false);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setResizable(false);
-    // 解除主窗最小尺寸钳制（720×560 会把 480×580 的批注窗顶大）。
     await windowManager.setMinimumSize(const Size(1, 1));
     await windowManager.setTitleBarStyle(
       TitleBarStyle.hidden,
@@ -255,6 +310,24 @@ class _RootShellState extends ConsumerState<RootShell>
     await windowManager.center();
     await windowManager.show();
     await windowManager.focus();
+  }
+
+  /// 通知坞：右下角无边框小窗，高度随任务条数。后台保存进度/结果在这里堆叠显示。
+  Future<void> _enterDock() async {
+    await windowManager.unmaximize();
+    await windowManager.setFullScreen(false);
+    await windowManager.setResizable(false);
+    await windowManager.setMinimumSize(const Size(1, 1));
+    await windowManager.setTitleBarStyle(
+      TitleBarStyle.hidden,
+      windowButtonVisibility: false,
+    );
+    final n = _jobs.length;
+    final height = 20.0 + n * 64.0; // 少量 buffer，避免无边框客户区误差导致溢出
+    await windowManager.setSize(Size(360, height));
+    await windowManager.setAlignment(Alignment.bottomRight);
+    await windowManager.setAlwaysOnTop(true);
+    await windowManager.show();
   }
 
   /// 恢复正常主窗 chrome 与尺寸（不改变可见性）。
@@ -314,14 +387,14 @@ class _RootShellState extends ConsumerState<RootShell>
             ),
           );
       _capturing = false;
-      await _enterAnnotationWindow();
+      await _syncWindow(); // pending 已设 → 进批注窗
     } catch (e) {
       _capturing = false;
       await _showError('截取失败', '$e');
     }
   }
 
-  // M5+M6：保存批注 → 生成 Markdown → 写入 Obsidian（闭环）。
+  // 保存：建后台任务 → 立即收起批注窗（释放窗口，可马上截下一张）→ 后台 AI+写盘+入库。
   Future<void> _saveAnnotation(String note) async {
     final pending = ref.read(annotationProvider);
     if (pending == null) return;
@@ -330,18 +403,30 @@ class _RootShellState extends ConsumerState<RootShell>
       await _showError('未配置知识库', '请先在「设置」里填写 Obsidian Vault 路径再保存。');
       return;
     }
-    // 立即收起批注窗 → 右下角小悬浮条显示进度，不让用户对着大窗等。
+    final jobId = _jobSeq++;
+    setState(() => _jobs.add(_SaveJob(
+          id: jobId,
+          label: _jobLabel(note, pending),
+          status: _JobStatus.running,
+        )));
     ref.read(annotationProvider.notifier).clear();
-    setState(() {
-      _toastText = 'AI 识别并保存中…';
-      _toastDone = false;
-    });
-    // 先解除最小尺寸钳制（主窗 minimumSize 720×560 会把小窗顶大）。
-    await windowManager.setMinimumSize(const Size(1, 1));
-    await windowManager.setSize(const Size(320, 88));
-    await windowManager.setAlignment(Alignment.bottomRight);
+    await _syncWindow(); // pending 清空、有 job → 进通知坞
+    unawaited(_runSaveJob(jobId, pending, note, settings));
+  }
 
-    // M7：AI 识别截图（失败降级，绝不阻塞写盘）。
+  String _jobLabel(String note, PendingCapture p) {
+    final first = note.trim().split('\n').first.trim();
+    if (first.isNotEmpty) return first;
+    return p.sourceApp.isNotEmpty ? '来自 ${p.sourceApp}' : '新捕获';
+  }
+
+  Future<void> _runSaveJob(
+    int jobId,
+    PendingCapture pending,
+    String note,
+    AppSettings settings,
+  ) async {
+    // AI 识别（失败降级，绝不阻塞写盘）。
     AiCaptureResult? ai;
     String? aiError;
     try {
@@ -363,8 +448,8 @@ class _RootShellState extends ConsumerState<RootShell>
           : '$e';
     }
 
-    String message;
-    bool ok = false;
+    var ok = false;
+    String detail;
     try {
       final record = CaptureRecord(
         id: const Uuid().v4(),
@@ -391,28 +476,41 @@ class _RootShellState extends ConsumerState<RootShell>
         baseName: '$dateStr ${record.displayTitle}',
         markdown: markdown,
       );
+      await ref.read(historyServiceProvider).add(
+            record.copyWith(markdownPath: res.markdownPath),
+          );
+      ref.invalidate(historyListProvider);
       ok = true;
-      if (ai != null) {
-        message = '已保存：${res.fileName}';
-      } else {
-        message = '已保存（AI 未生效，降级）';
+      detail = ai != null ? record.displayTitle : '${record.displayTitle}（AI 未生效）';
+      if (ai == null) {
         _writeDiag(StringBuffer()..writeln('${DateTime.now()} AI fail: $aiError'));
       }
     } catch (e) {
-      message = '写入失败：$e';
+      detail = '写入失败：$e';
     }
 
+    _updateJob(jobId, ok ? _JobStatus.done : _JobStatus.failed, detail);
+    // 成功停留 2s、失败停留 5s 后移除。
+    await Future.delayed(Duration(seconds: ok ? 2 : 5));
+    _removeJob(jobId);
+  }
+
+  void _updateJob(int id, _JobStatus status, String detail) {
     if (!mounted) return;
-    // 悬浮条显示结果，短暂停留后消失回托盘。
     setState(() {
-      _toastText = message;
-      _toastDone = ok;
+      for (final j in _jobs) {
+        if (j.id == id) {
+          j.status = status;
+          j.detail = detail;
+        }
+      }
     });
-    await Future.delayed(Duration(milliseconds: ok ? 1200 : 3500));
+  }
+
+  void _removeJob(int id) {
     if (!mounted) return;
-    setState(() => _toastText = null);
-    await windowManager.hide();
-    await _restoreNormalChrome();
+    setState(() => _jobs.removeWhere((j) => j.id == id));
+    _syncWindow(); // 条数变化 → 调整坞尺寸；空了 → 隐藏
   }
 
   Future<void> _cancelAnnotation() async {
@@ -424,8 +522,7 @@ class _RootShellState extends ConsumerState<RootShell>
         await File(pending.screenshotPath).delete();
       } catch (_) {}
     }
-    await windowManager.hide();
-    await _restoreNormalChrome();
+    await _syncWindow(); // 无 pending → 通知坞 或 隐藏
   }
 
   Future<void> _cancelCapture() async {
@@ -433,6 +530,7 @@ class _RootShellState extends ConsumerState<RootShell>
     ref.read(captureSessionProvider.notifier).end();
     await _resetWindowHidden();
     _capturing = false;
+    await _syncWindow(); // 有后台任务则回通知坞，否则保持隐藏
   }
 
   Future<void> _showError(String title, String content) async {
@@ -515,7 +613,12 @@ class _RootShellState extends ConsumerState<RootShell>
               PaneItem(
                 icon: const Icon(FluentIcons.home),
                 title: const Text('主页'),
-                body: HomePage(onOpenSettings: () => setState(() => _index = 1)),
+                body: HomePage(onOpenSettings: () => setState(() => _index = 2)),
+              ),
+              PaneItem(
+                icon: const Icon(FluentIcons.history),
+                title: const Text('历史'),
+                body: const HistoryPage(),
               ),
               PaneItem(
                 icon: const Icon(FluentIcons.settings),
@@ -543,45 +646,119 @@ class _RootShellState extends ConsumerState<RootShell>
               onCancel: _cancelAnnotation,
             ),
           ),
-        if (_toastText != null)
-          Positioned.fill(
-            child: _SaveToast(text: _toastText!, done: _toastDone),
-          ),
+        if (session == null && pending == null && _jobs.isNotEmpty)
+          Positioned.fill(child: _NotificationDock(jobs: List.of(_jobs))),
       ],
     );
   }
 }
 
-/// 保存进度悬浮条：占满右下角小窗（320×88），转圈 → ✅/❌ 结果。
-class _SaveToast extends StatelessWidget {
-  const _SaveToast({required this.text, required this.done});
+enum _JobStatus { running, done, failed, blocked }
 
-  final String text;
-  final bool done;
+/// 一个后台保存任务（可变：状态/详情会原地更新）。
+class _SaveJob {
+  _SaveJob({
+    required this.id,
+    required this.label,
+    required this.status,
+    // ignore: unused_element_parameter
+    this.detail = '',
+  });
+
+  final int id;
+  final String label;
+  _JobStatus status;
+  String detail;
+}
+
+/// 右下角通知坞：竖向堆叠最多几条后台保存任务的进度/结果，铺满坞窗口。
+class _NotificationDock extends StatelessWidget {
+  const _NotificationDock({required this.jobs});
+
+  final List<_SaveJob> jobs;
 
   @override
   Widget build(BuildContext context) {
-    final saving = !done && !text.contains('失败');
     return Container(
-      color: const Color(0xFF111116),
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      color: const Color(0xFF0E0E12),
+      padding: const EdgeInsets.all(4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final j in jobs)
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: _JobCard(job: j),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JobCard extends StatelessWidget {
+  const _JobCard({required this.job});
+
+  final _SaveJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    final running = job.status == _JobStatus.running;
+    final failed = job.status == _JobStatus.failed;
+    final blocked = job.status == _JobStatus.blocked;
+    final title = job.detail.isNotEmpty ? job.detail : job.label;
+
+    Widget leading;
+    if (running) {
+      leading = const SizedBox(
+          width: 18, height: 18, child: ProgressRing(strokeWidth: 2.5));
+    } else if (blocked) {
+      leading = const Icon(FluentIcons.warning, size: 18, color: Color(0xFFFBBF24));
+    } else if (failed) {
+      leading = const Icon(FluentIcons.error_badge, size: 18, color: Color(0xFFF87171));
+    } else {
+      leading = const Icon(FluentIcons.completed_solid,
+          size: 18, color: Color(0xFF4ADE80));
+    }
+
+    return Container(
+      height: 56,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF17171D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x14FFFFFF)),
+      ),
       child: Row(
         children: [
-          if (saving)
-            const SizedBox(width: 20, height: 20, child: ProgressRing(strokeWidth: 2.5))
-          else
-            Icon(
-              done ? FluentIcons.check_mark : FluentIcons.error_badge,
-              size: 20,
-              color: done ? const Color(0xFF4ADE80) : const Color(0xFFF87171),
-            ),
+          leading,
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Colors.white),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  running ? 'AI 识别并保存中…' : (blocked ? '请稍候' : (failed ? '保存失败' : '已保存到 Obsidian')),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

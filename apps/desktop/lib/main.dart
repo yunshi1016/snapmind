@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'providers.dart';
+import 'services/history_service.dart';
 
 /// SnapMind · 瞬念 — Capture your thoughts from anywhere.
 Future<void> main() async {
@@ -15,6 +16,7 @@ Future<void> main() async {
   // 清理可能残留的全局热键注册（热重启/崩溃后）。
   await hotKeyManager.unregisterAll();
   final prefs = await SharedPreferences.getInstance();
+  final history = await HistoryService.open();
 
   const windowOptions = WindowOptions(
     size: Size(900, 640),
@@ -34,7 +36,10 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        historyServiceProvider.overrideWithValue(history),
+      ],
       child: const SnapMindApp(),
     ),
   );
