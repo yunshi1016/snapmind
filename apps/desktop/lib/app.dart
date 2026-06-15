@@ -417,6 +417,7 @@ class _RootShellState extends ConsumerState<RootShell>
               createdAt: DateTime.now(),
               sourceApp: _lastSource.app,
               sourceWindowTitle: _lastSource.title,
+              sourceUrl: _lastSource.url,
             ),
           );
       _capturing = false;
@@ -500,6 +501,9 @@ class _RootShellState extends ConsumerState<RootShell>
         tags: ai?.tags ?? const [],
         sourceApp: pending.sourceApp,
         sourceWindowTitle: pending.sourceWindowTitle,
+        sourceUrl: pending.sourceUrl.trim().isEmpty
+            ? null
+            : pending.sourceUrl.trim(),
         status: ai != null ? CaptureStatus.saved : CaptureStatus.aiFailed,
       );
       final markdown = const MarkdownGenerator().generate(record);

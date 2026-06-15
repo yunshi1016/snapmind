@@ -5,17 +5,24 @@ import 'package:win32/win32.dart';
 
 /// 触发截图瞬间的前台窗口信息。
 class ForegroundWindowInfo {
-  const ForegroundWindowInfo({this.app = '', this.title = ''});
+  const ForegroundWindowInfo({this.app = '', this.title = '', this.url = ''});
 
   /// 前台进程的可执行文件名，如 chrome.exe。
   final String app;
 
   /// 前台窗口标题。
   final String title;
+
+  /// 浏览器地址栏 URL（暂未实现，恒为空——见下方说明）。
+  final String url;
 }
 
 /// 纯 Dart win32 FFI 取前台窗口元数据（仅 Windows）。
 /// 必须在隐藏/弹出 SnapMind 自己的窗口**之前**调用，否则焦点已变。
+///
+/// 注：地址栏 URL 曾尝试用 UI Automation 读取，但内联 UIA/COM 的原生访问违例
+/// 无法被 Dart try/catch 捕获，一旦指针出错就会崩溃整个进程。已暂时移除，
+/// URL 恒为空；可靠取 URL 的方案是浏览器扩展（独立子项目）。
 class ForegroundWindowService {
   const ForegroundWindowService();
 

@@ -12,6 +12,7 @@ class PendingCapture {
     required this.createdAt,
     this.sourceApp = '',
     this.sourceWindowTitle = '',
+    this.sourceUrl = '',
   });
 
   final Uint8List croppedPng; // 缩略图用
@@ -21,6 +22,7 @@ class PendingCapture {
   final DateTime createdAt;
   final String sourceApp; // 触发截图时的前台应用
   final String sourceWindowTitle; // 触发截图时的前台窗口标题
+  final String sourceUrl; // 浏览器地址栏 URL（可空）
 }
 
 /// null = 无待批注；非 null = 批注窗显示中。
