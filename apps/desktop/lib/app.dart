@@ -23,6 +23,7 @@ import 'features/history/history_page.dart';
 import 'features/home/home_page.dart';
 import 'features/settings/settings_page.dart';
 import 'providers.dart';
+import 'services/browser_url_server.dart';
 import 'services/capture_service.dart';
 import 'services/foreground_window_service.dart';
 import 'services/hotkey_service.dart';
@@ -56,6 +57,7 @@ class _RootShellState extends ConsumerState<RootShell>
   int _index = 0;
   bool _capturing = false;
   ForegroundWindowInfo _lastSource = const ForegroundWindowInfo();
+  String _lastBrowserUrl = '';
 
   // 后台保存任务（AI+写盘+入库，不占窗口）。最多 3 个并发。
   final List<_SaveJob> _jobs = [];
@@ -143,6 +145,10 @@ class _RootShellState extends ConsumerState<RootShell>
     try {
       // 最先取前台窗口元数据 —— 一旦动了自己的窗口，焦点就变了。
       _lastSource = const ForegroundWindowService().capture();
+      // 若前台是浏览器，用扩展推送的缓存 URL（此刻浏览器仍聚焦，读到的就是当前页）。
+      _lastBrowserUrl = kBrowserExes.contains(_lastSource.app.toLowerCase())
+          ? ref.read(browserUrlServerProvider).currentUrl
+          : '';
       // 最小化窗口的 SetWindowPos 会被系统忽略（导致后续 setBounds 失效）——先还原。
       if (await windowManager.isMinimized()) {
         await windowManager.restore();
@@ -417,7 +423,7 @@ class _RootShellState extends ConsumerState<RootShell>
               createdAt: DateTime.now(),
               sourceApp: _lastSource.app,
               sourceWindowTitle: _lastSource.title,
-              sourceUrl: _lastSource.url,
+              sourceUrl: _lastBrowserUrl,
             ),
           );
       _capturing = false;

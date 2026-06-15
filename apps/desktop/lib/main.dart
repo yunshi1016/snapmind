@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'providers.dart';
+import 'services/browser_url_server.dart';
 import 'services/capture_service.dart';
 import 'services/history_service.dart';
 import 'services/settings_service.dart';
@@ -29,6 +30,10 @@ Future<void> main() async {
   );
   final prefs = await SharedPreferences.getInstance();
   final history = await HistoryService.open();
+
+  // 本地浏览器 URL 服务：接收扩展推送的当前 tab URL（截图时作为来源链接）。
+  final browserUrlServer = BrowserUrlServer();
+  unawaited(browserUrlServer.start());
 
   // 启动时按保留策略清理过期截图备份（后台进行，不阻塞启动）。
   final settings = SettingsService(prefs, const FlutterSecureStorage()).load();
@@ -62,6 +67,7 @@ Future<void> main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         historyServiceProvider.overrideWithValue(history),
+        browserUrlServerProvider.overrideWithValue(browserUrlServer),
       ],
       child: const SnapMindApp(),
     ),

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/models/capture_record.dart';
 import 'models/app_settings.dart';
+import 'services/browser_url_server.dart';
 import 'services/history_service.dart';
 import 'services/settings_service.dart';
 
@@ -46,4 +47,9 @@ final historyServiceProvider = Provider<HistoryService>(
 /// 历史记录列表（时间倒序）。保存后 ref.invalidate 刷新。
 final historyListProvider = FutureProvider<List<CaptureRecord>>(
   (ref) => ref.watch(historyServiceProvider).recent(),
+);
+
+/// 由 main() 注入的本地浏览器 URL 服务（接收扩展推送的 tab URL）。
+final browserUrlServerProvider = Provider<BrowserUrlServer>(
+  (ref) => throw UnimplementedError('在 main() 中用 overrideWithValue 注入'),
 );

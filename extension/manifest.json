@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "SnapMind URL Bridge",
+  "version": "0.1.0",
+  "description": "把当前浏览器标签页 URL 推送给 SnapMind 桌面应用，作为截图笔记的来源链接。",
+  "permissions": ["tabs"],
+  "host_permissions": ["http://127.0.0.1:49219/*"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
