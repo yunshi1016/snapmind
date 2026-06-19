@@ -1,0 +1,26 @@
+name: SnapMindMac
+options:
+  bundleIdPrefix: com.munroe
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+targets:
+  SnapMindMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.munroe.snapmind
+        PRODUCT_NAME: SnapMind
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: SnapMind
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.productivity"
+        INFOPLIST_KEY_NSAppleEventsUsageDescription: "SnapMind 需要读取前台浏览器当前标签页的网址，作为截图笔记的来源链接。"
+        # 非沙盒：要写任意位置的 Obsidian 库、跑 screencapture、对浏览器发 Apple Events。
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "5.0"
