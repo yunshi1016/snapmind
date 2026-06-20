@@ -23,6 +23,11 @@ $zipPath = Join-Path $distDir $zipName
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
 Compress-Archive -Path (Join-Path $releaseDir '*') -DestinationPath $zipPath
+# 顺带把浏览器扩展打进包里，解压即可加载（网页来源链接功能需要它；不装不影响截图）。
+$extDir = Join-Path $root 'extension'
+if (Test-Path $extDir) {
+  Compress-Archive -Path $extDir -DestinationPath $zipPath -Update
+}
 $sizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 Write-Host "✅ 便携包已生成：$zipPath  ($sizeMB MB)"
 Write-Host "   分发说明：解压后双击 snapmind.exe 即可运行，无需安装。"
