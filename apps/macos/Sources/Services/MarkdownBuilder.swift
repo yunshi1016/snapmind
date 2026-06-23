@@ -30,7 +30,9 @@ struct MarkdownBuilder {
         body += "# \(title)\n\n"
         body += "## 我的想法\n\n\(orDash(r.userNote))\n\n"
         body += "## AI 摘要\n\n\(orPlaceholder(r.aiSummary, "_（暂无 AI 摘要）_"))\n\n"
-        body += "## OCR 原文\n\n\(orPlaceholder(r.ocrText, "_（暂无 OCR 文本）_"))\n\n"
+        let ocr = trim(r.ocrText)
+        let ocrBody = ocr.isEmpty ? "_（暂无 OCR 文本）_" : OcrMarkdown.normalize(ocr)
+        body += "## OCR 识别\n\n\(ocrBody)\n\n"
         body += "## 来源信息\n\n"
         body += "- 应用：\(orDash(r.sourceApp))\n"
         body += "- 窗口标题：\(orDash(r.sourceWindowTitle))\n"
