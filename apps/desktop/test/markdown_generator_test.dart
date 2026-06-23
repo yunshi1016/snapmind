@@ -28,7 +28,7 @@ void main() {
     expect(md, contains('这是我的想法'));
     expect(md, contains('## AI 摘要'));
     expect(md, contains('这是摘要'));
-    expect(md, contains('## OCR 原文'));
+    expect(md, contains('## OCR 识别'));
     expect(md, contains('识别出来的文字'));
     expect(md, contains('- 应用：chrome.exe'));
     expect(md, contains('- 时间：2026-06-08 22:30'));
@@ -39,6 +39,20 @@ void main() {
     // v1 决策：不嵌入截图
     expect(md, isNot(contains('![[')));
     expect(md, isNot(contains('## 截图')));
+  });
+
+  test('OCR Markdown：#/## 标题降到 ###，代码围栏内不动', () {
+    final r = CaptureRecord(
+      id: 'z',
+      createdAt: DateTime(2026, 6, 8),
+      ocrText: '# 顶层\n## 二级\n```bash\n# 注释\n```\n### 三级不变',
+    );
+    final md = gen.generate(r);
+    expect(md, contains('### 顶层'));
+    expect(md, contains('### 二级'));
+    expect(md, contains('# 注释')); // 代码围栏内保持原样
+    expect(md, contains('### 三级不变'));
+    expect(md, isNot(contains('\n# 顶层')));
   });
 
   test('空 AI 字段→占位符；标题退化到批注首行', () {

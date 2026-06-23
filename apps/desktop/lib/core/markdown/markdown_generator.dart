@@ -45,9 +45,13 @@ class MarkdownGenerator {
       ..writeln()
       ..writeln(_orPlaceholder(r.aiSummary, '_（暂无 AI 摘要）_'))
       ..writeln()
-      ..writeln('## OCR 原文')
+      ..writeln('## OCR 识别')
       ..writeln()
-      ..writeln(_orPlaceholder(r.ocrText, '_（暂无 OCR 文本）_'))
+      ..writeln(
+        r.ocrText.trim().isEmpty
+            ? '_（暂无 OCR 文本）_'
+            : _normalizeOcr(r.ocrText.trim()),
+      )
       ..writeln()
       ..writeln('## 来源信息')
       ..writeln()
@@ -61,6 +65,32 @@ class MarkdownGenerator {
       ..writeln(tags.isEmpty ? '—' : tags.map((t) => '#$t').join(' '));
 
     return '$fm\n$body';
+  }
+
+  /// 把 OCR 的 Markdown 调整成可安全嵌入笔记的 Obsidian Markdown：
+  /// 笔记自身用 # 作标题、## 作段落，所以 OCR 内的 # / ## 标题要降到 ###，
+  /// 否则会顶破整篇大纲。跳过代码围栏内的行（避免改动代码里的 # 注释）。
+  String _normalizeOcr(String raw) {
+    final lines = raw.replaceAll('\r\n', '\n').split('\n');
+    var inFence = false;
+    final out = <String>[];
+    for (final line in lines) {
+      final stripped = line.replaceFirst(RegExp(r'^ +'), '');
+      if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+        inFence = !inFence;
+        out.add(line);
+        continue;
+      }
+      if (!inFence) {
+        final m = RegExp(r'^(#{1,6}) ').firstMatch(stripped);
+        if (m != null && m.group(1)!.length < 3) {
+          out.add('#' * (3 - m.group(1)!.length) + stripped);
+          continue;
+        }
+      }
+      out.add(line);
+    }
+    return out.join('\n');
   }
 
   String _orDash(String s) => s.trim().isEmpty ? '—' : s.trim();
